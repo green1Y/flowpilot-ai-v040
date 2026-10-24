@@ -37,7 +37,7 @@
   "name": "flowpilot-ai",
   "private": true,
   "scripts": {
-    "build": "prisma generate && next build",
+    "build": "prisma generate && node scripts/migrate-production.mjs && next build",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "dev": "next dev",
@@ -47,5 +47,11 @@
     "typecheck": "tsc --noEmit",
     "check:logs": "bash scripts/check-logs.sh"
   },
-  "version": "0.4.0"
+  "version": "0.4.0",
+  "allowScripts": {
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true,
+    "prisma@5.22.0": true,
+    "esbuild@0.21.5": true
+  }
 }

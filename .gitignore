@@ -17,3 +17,6 @@ coverage
 *.log
 .turbo/
 coverage/
+
+.vercel
+.env*

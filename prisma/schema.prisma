@@ -1,4 +1,4 @@
-// FlowPilot AI — Prisma schema
+// FlowPilot AI â€” Prisma schema
 // SQLite for local dev (DATABASE_URL="file:./dev.db").
 // PostgreSQL for production: change provider to "postgresql" and set DATABASE_URL.
 // SQLite has no enums, so status/role fields are Strings with documented values.
@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -26,7 +26,7 @@ model User {
   // password reset increment it, invalidating all previously issued tokens.
   // Tokens issued before v0.4.0 carry no claim and are accepted (migration
   // leniency) until the next password change. Single-device logout still
-  // only clears the cookie — it does not revoke other devices' tokens.
+  // only clears the cookie â€” it does not revoke other devices' tokens.
   tokenVersion    Int       @default(0)
   createdAt    DateTime @default(now())
   memberships  Membership[]
@@ -66,7 +66,7 @@ model Workspace {
   slug        String   @unique
   brandColor  String   @default("#8B5CF6")
   plan        String   @default("STARTER") // legacy tier name (STARTER | GROWTH | AGENCY); prefer the planId relation
-  planId      String?  // nullable FK → Plan; null = resolve via legacy `plan` name
+  planId      String?  // nullable FK â†’ Plan; null = resolve via legacy `plan` name
   isDemo      Boolean  @default(false) // demo workspace: all real external sends are blocked server-side
   createdAt   DateTime @default(now())
   org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -109,7 +109,7 @@ model Workspace {
   @@index([orgId])
 }
 
-// Phase 4 — per-workspace settings (automation defaults + notification
+// Phase 4 â€” per-workspace settings (automation defaults + notification
 // toggles). Stored as JSON so new keys stay additive; defaults live in
 // src/lib/workspace-settings.ts and are merged on read.
 model WorkspaceSettings {
@@ -130,11 +130,11 @@ model Integration {
   encryptedCredentials String?   // AES-256-GCM ciphertext (never plaintext)
   // Last failure detail, JSON: { code, message, at }. Drives the honest
   // 8-state connection model (failed / permission_missing / reauth_required).
-  // Never contains tokens or secrets — only safe, user-facing messages.
+  // Never contains tokens or secrets â€” only safe, user-facing messages.
   statusDetail         String?
-  externalAccountId  String?    // page id / IG user id / WhatsApp phone_number_id — for webhook→workspace matching
+  externalAccountId  String?    // page id / IG user id / WhatsApp phone_number_id â€” for webhookâ†’workspace matching
   // Batch B (multi-account): the deterministic default account for its
-  // (workspace, provider) pair — at most one row per pair has this true.
+  // (workspace, provider) pair â€” at most one row per pair has this true.
   // Adapter resolution uses it instead of "first row of a query".
   isDefault          Boolean   @default(false)
   accountName        String?    // display name retrieved from the provider's identity API (never guessed)
@@ -149,7 +149,7 @@ model Integration {
   // v0.4.0: webhook subscription state, written by the resubscribe probe
   // and the health checks (null = never confirmed via API).
   webhookSubscribedAt      DateTime?
-  webhookSubscriptionDetail String? // sanitized JSON: { fields, checkedAt } — never secrets
+  webhookSubscriptionDetail String? // sanitized JSON: { fields, checkedAt } â€” never secrets
   createdAt            DateTime  @default(now())
   workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   retargetingCampaigns RetargetingCampaign[]
@@ -168,7 +168,7 @@ model Contact {
   id            String   @id @default(cuid())
   workspaceId   String
   name          String
-  externalIds   String   @default("{}") // JSON: { provider: externalId } — channel-specific identity mapping
+  externalIds   String   @default("{}") // JSON: { provider: externalId } â€” channel-specific identity mapping
   channel       String   @default("web") // source channel
   email         String?
   phone         String?
@@ -245,7 +245,7 @@ model Message {
   aiGenerated    Boolean  @default(false)
   mocked         Boolean  @default(false) // true when produced by the mock adapter (never a real send)
   internalNote   Boolean  @default(false) // Stage 4a: agent-authored note, never sent anywhere
-  providerMessageId String? // provider-side id (wamid / MID) when known — matches delivery-status webhooks
+  providerMessageId String? // provider-side id (wamid / MID) when known â€” matches delivery-status webhooks
   deliveryStatus String?  // provider-reported for OUTBOUND rows: sent | delivered | read | failed
   createdAt      DateTime @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -274,7 +274,7 @@ model Workflow {
   @@index([workspaceId, status])
 }
 
-// Batch C — immutable published-graph snapshots. Written once at publish
+// Batch C â€” immutable published-graph snapshots. Written once at publish
 // time under the workflow's then-current version number; never updated
 // afterwards (a version number's graph is fixed forever). Executions pin
 // to a snapshot via WorkflowExecution.workflowVersion so editing a
@@ -323,7 +323,7 @@ model WorkflowEdge {
 model WorkflowExecution {
   id             String   @id @default(cuid())
   workflowId     String
-  // Batch B: the connected account this execution is scoped to — from the
+  // Batch B: the connected account this execution is scoped to â€” from the
   // trigger event's account when present, else the account an action
   // resolved. Null for account-less triggers (manual/scheduled).
   integrationId  String?
@@ -393,7 +393,7 @@ model Campaign {
   @@index([workspaceId, status])
 }
 
-// Stage 3 — one row per (campaign, contact). The pre-send eligibility verdict
+// Stage 3 â€” one row per (campaign, contact). The pre-send eligibility verdict
 // (PENDING vs SKIPPED) is computed at build time and RE-CHECKED at send time.
 // Status: PENDING | SKIPPED | SENT | FAILED | REPLIED.
 model CampaignRecipient {
@@ -487,7 +487,7 @@ model KnowledgeChunk {
   @@index([workspaceId, docId])
 }
 
-// Stage 4c: AI replies held back from auto-send — low confidence or human
+// Stage 4c: AI replies held back from auto-send â€” low confidence or human
 // approval required. A human reviews and resolves them from the AI page.
 // Status: OPEN | RESOLVED
 model Escalation {
@@ -576,7 +576,7 @@ model MessageTemplate {
   @@index([workspaceId, channel])
 }
 
-// An individual outbound message request — immediate or scheduled.
+// An individual outbound message request â€” immediate or scheduled.
 // Status: SCHEDULED | SENT | CANCELLED | FAILED
 // The send pipeline (src/lib/messaging/send.ts) re-checks eligibility at
 // send time and records every attempt in OutboundSend (SENT | FAILED | SKIPPED).
@@ -604,7 +604,7 @@ model FollowUp {
   @@index([workspaceId, status, scheduledAt])
 }
 
-// Every send attempt through the pipeline — the audit-grade record of what
+// Every send attempt through the pipeline â€” the audit-grade record of what
 // left (or did not leave) the building. Status: SENT | FAILED | SKIPPED.
 // campaignId is set for Stage 3 bulk sends (nullable).
 model OutboundSend {
@@ -624,7 +624,7 @@ model OutboundSend {
   providerMessageId  String?
   deliveryStatus     String?  // provider-reported: sent | delivered | read | failed (null = no status webhook yet)
   deliveryStatusAt   DateTime?
-  mocked             Boolean  @default(false) // true when the mock adapter "sent" it — never a real send
+  mocked             Boolean  @default(false) // true when the mock adapter "sent" it â€” never a real send
   error              String?
   createdAt          DateTime @default(now())
   workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -662,11 +662,11 @@ model AuditEvent {
   @@index([workspaceId, action, createdAt]) // perf: audit log filtered by action, ordered by recency
 }
 
-// Stage 4d — SaaS plan limits (server-side enforced usage metering).
+// Stage 4d â€” SaaS plan limits (server-side enforced usage metering).
 //
 // One row per (workspace, month). Counters are incremented by
 // recordUsage() in src/lib/billing/usage.ts. Replaces the old per-metric
-// event rows (metric/quantity/period) — callers use trackUsage(), which
+// event rows (metric/quantity/period) â€” callers use trackUsage(), which
 // maps legacy metric names onto these counters.
 model UsageRecord {
   id               String   @id @default(cuid())
@@ -684,7 +684,7 @@ model UsageRecord {
   @@unique([workspaceId, month])
 }
 
-// Stage 4d — billable plan tiers. Limits are enforced server-side by
+// Stage 4d â€” billable plan tiers. Limits are enforced server-side by
 // requirePlanLimit() in src/lib/billing/usage.ts. Seeded by
 // src/db/seed-plans.ts (idempotent upserts by name).
 model Plan {
@@ -703,7 +703,7 @@ model Plan {
   workspaces          Workspace[]
 }
 
-// Stage 4e — order ↔ contact links. `verified`/`source` are copied from the
+// Stage 4e â€” order â†” contact links. `verified`/`source` are copied from the
 // provider result at link time so the UI can always show the provenance.
 model ContactOrder {
   id          String   @id @default(cuid())
@@ -721,7 +721,7 @@ model ContactOrder {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 3A — unified customer event log. Every meaningful customer-facing
+// Phase 3A â€” unified customer event log. Every meaningful customer-facing
 // occurrence (inbound/outbound message, comment, workflow run, tag change,
 // opt-out, purchase, campaign interaction, conversion) is recorded here so
 // CRM, retargeting, and analytics share ONE source of truth.
@@ -732,7 +732,7 @@ model ContactOrder {
 //   contact_tagged | segment_changed | opted_out | consent_changed |
 //   purchase_recorded | campaign_interaction | conversion_attributed
 //
-// Idempotency: (workspaceId, providerEventId) is UNIQUE — re-ingesting the
+// Idempotency: (workspaceId, providerEventId) is UNIQUE â€” re-ingesting the
 // same webhook never creates a duplicate event. Rows without a
 // providerEventId (NULL) are always inserted (SQLite treats NULLs as
 // distinct). Tenant isolation: every query MUST scope by workspaceId.
@@ -744,7 +744,7 @@ model CustomerEvent {
   integrationId   String?  // Batch B: connected account the event came through (nullable)
   type            String
   provider        String?  // instagram | facebook | whatsapp | tiktok | system | store
-  providerEventId String?  // MID, comment ID, webhook delivery ID — dedupe key
+  providerEventId String?  // MID, comment ID, webhook delivery ID â€” dedupe key
   timestamp       DateTime @default(now())
   source          String   @default("system") // webhook | api | engine | campaign | import
   metadata        String   @default("{}")     // JSON: free-form event payload
@@ -761,7 +761,7 @@ model CustomerEvent {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 3B — retargeting. AudienceSegment is extended (was a stub with only
+// Phase 3B â€” retargeting. AudienceSegment is extended (was a stub with only
 // `filters`): `conditions` carries the AND/OR condition tree used by the
 // segment evaluator; `filters` is kept for backward compatibility.
 // ---------------------------------------------------------------------------
@@ -780,7 +780,7 @@ model RetargetingCampaign {
   objective     String   @default("")
   message       String   @default("{}") // JSON: message template + variables / ad creative refs
   schedule      String   @default("{}") // JSON: { startsAt, endsAt, timezone, frequencyCap }
-  budget        String   @default("{}") // JSON: { amount, currency } — paid_ad only
+  budget        String   @default("{}") // JSON: { amount, currency } â€” paid_ad only
   dryRun        Boolean  @default(false)
   confirmedAt   DateTime?
   startedAt     DateTime?
@@ -815,7 +815,7 @@ model RetargetingRecipient {
   @@index([campaignId, status])
 }
 
-// Phase 4 — Onboarding progress (per user per workspace). Additive; never reset existing tables.
+// Phase 4 â€” Onboarding progress (per user per workspace). Additive; never reset existing tables.
 // stepsDone / skipped: JSON arrays of step ids. data: JSON object for step payloads
 // (locale, timezone, useCase, chosenTemplateId, ...). completedAt set when the user
 // finishes or skips all remaining steps.
@@ -837,11 +837,11 @@ model OnboardingProgress {
   @@index([workspaceId])
 }
 
-// Workstream A (public-beta readiness) — auth lifecycle + support tickets.
+// Workstream A (public-beta readiness) â€” auth lifecycle + support tickets.
 // All additive; existing tables untouched.
 
 // Email verification: one active 6-digit code per user. The plaintext code is
-// NEVER stored — only its SHA-256 hash. 15-minute expiry, 5-attempt lockout
+// NEVER stored â€” only its SHA-256 hash. 15-minute expiry, 5-attempt lockout
 // (attempts counted on the row).
 model EmailVerification {
   id        String   @id @default(cuid())
@@ -882,7 +882,7 @@ model SupportTicket {
   @@index([workspaceId, createdAt])
 }
 
-// ── v0.4.0 additions (all additive; no existing model altered incompatibly) ──
+// â”€â”€ v0.4.0 additions (all additive; no existing model altered incompatibly) â”€â”€
 
 // One health-probe result per check. Probes never store credentials or tokens;
 // `detail` is sanitized JSON (probe-specific safe fields only).
@@ -978,7 +978,7 @@ model ProspectSearch {
 }
 
 // A prospect record. Contact fields are nullable and must come from a real
-// source (sourceUrl) or explicit user input — the system never invents an
+// source (sourceUrl) or explicit user input â€” the system never invents an
 // email, phone, revenue, or employee. qualificationReasons is JSON explaining
 // the score in the user's own criteria terms.
 // status values: NEW | QUALIFIED | REJECTED | CONTACTED
@@ -1031,7 +1031,7 @@ model ConsentRecord {
 }
 
 // Customer import batches. The legacy direct-import route is unchanged; this
-// batch flow adds preview → mapping → confirm. Rows are never silently
+// batch flow adds preview â†’ mapping â†’ confirm. Rows are never silently
 // merged: a DUPLICATE row needs an explicit resolution (create|merge|skip)
 // chosen at confirm time, and suppressed contacts are never re-added to
 // campaigns by an import (their Suppression rows survive because dedupe
@@ -1073,7 +1073,7 @@ model ImportRow {
 // Durable background jobs (v0.4.0). The in-memory queue in src/lib/queue.ts
 // is replaced by this table for new job types; workflow execution jobs keep
 // working through the same enqueue interface. A job is claimed by exactly
-// one worker run (status transition QUEUED → RUNNING inside a transaction);
+// one worker run (status transition QUEUED â†’ RUNNING inside a transaction);
 // retries use exponential backoff with jitter; exhausted jobs go DEAD_LETTER.
 // status values: QUEUED | RUNNING | SUCCEEDED | FAILED | DEAD_LETTER
 model BackgroundJob {
@@ -1114,3 +1114,4 @@ model CampaignApproval {
 
   @@index([workspaceId, campaignId, createdAt])
 }
+
