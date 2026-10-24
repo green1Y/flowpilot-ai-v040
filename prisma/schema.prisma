@@ -1,0 +1,1116 @@
+// FlowPilot AI — Prisma schema
+// SQLite for local dev (DATABASE_URL="file:./dev.db").
+// PostgreSQL for production: change provider to "postgresql" and set DATABASE_URL.
+// SQLite has no enums, so status/role fields are Strings with documented values.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  locale       String   @default("en")
+  timezone     String   @default("UTC")
+  notificationPrefs String @default("{}") // JSON: per-user notification toggles (see lib/workspace-settings.ts userNotifDefaults)
+  emailVerified   Boolean   @default(false) // set true only after a real verification code round-trip
+  emailVerifiedAt DateTime?
+  // v0.4.0: session version. JWTs carry tokenVersion; password change and
+  // password reset increment it, invalidating all previously issued tokens.
+  // Tokens issued before v0.4.0 carry no claim and are accepted (migration
+  // leniency) until the next password change. Single-device logout still
+  // only clears the cookie — it does not revoke other devices' tokens.
+  tokenVersion    Int       @default(0)
+  createdAt    DateTime @default(now())
+  memberships  Membership[]
+  auditEvents  AuditEvent[]
+  onboardingProgress OnboardingProgress[]
+  emailVerifications EmailVerification[]
+  passwordResetTokens PasswordResetToken[]
+  supportTickets SupportTicket[]
+
+  @@index([email])
+}
+
+model Organization {
+  id         String      @id @default(cuid())
+  name       String
+  createdAt  DateTime    @default(now())
+  workspaces Workspace[]
+}
+
+// Role values: OWNER | ADMIN | MANAGER | AGENT | ANALYST
+model Membership {
+  id          String @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        String @default("AGENT")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  slug        String   @unique
+  brandColor  String   @default("#8B5CF6")
+  plan        String   @default("STARTER") // legacy tier name (STARTER | GROWTH | AGENCY); prefer the planId relation
+  planId      String?  // nullable FK → Plan; null = resolve via legacy `plan` name
+  isDemo      Boolean  @default(false) // demo workspace: all real external sends are blocked server-side
+  createdAt   DateTime @default(now())
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  planRecord  Plan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  memberships Membership[]
+  integrations Integration[]
+  contacts    Contact[]
+  conversations Conversation[]
+  workflows   Workflow[]
+  campaigns   Campaign[]
+  aiConfigs   AiConfig[]
+  knowledgeDocs KnowledgeDoc[]
+  knowledgeChunks KnowledgeChunk[]
+  escalations   Escalation[]
+  auditEvents AuditEvent[]
+  usageRecords UsageRecord[]
+  approvalRequests ApprovalRequest[]
+  segments    AudienceSegment[]
+  comments        Comment[]
+  suppressions    Suppression[]
+  messageTemplates MessageTemplate[]
+  contactSegments ContactSegment[]
+  followUps       FollowUp[]
+  outboundSends   OutboundSend[]
+  contactOrders   ContactOrder[]
+  customerEvents  CustomerEvent[]
+  retargetingCampaigns RetargetingCampaign[]
+  onboardingProgress OnboardingProgress[]
+  workspaceSettings WorkspaceSettings?
+  supportTickets SupportTicket[]
+  healthChecks HealthCheck[]
+  commentDmRules CommentDmRule[]
+  commentDmEvents CommentDmEvent[]
+  prospectSearches ProspectSearch[]
+  prospects Prospect[]
+  consentRecords ConsentRecord[]
+  importBatches ImportBatch[]
+  campaignApprovals CampaignApproval[]
+
+  @@index([orgId])
+}
+
+// Phase 4 — per-workspace settings (automation defaults + notification
+// toggles). Stored as JSON so new keys stay additive; defaults live in
+// src/lib/workspace-settings.ts and are merged on read.
+model WorkspaceSettings {
+  id          String   @id @default(cuid())
+  workspaceId String   @unique
+  settings    String   @default("{}") // JSON: { automation: {...}, notifications: {...} }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// Integration status: DEMO | CONNECTED | NEEDS_ATTENTION | EXPIRED | DISCONNECTED
+model Integration {
+  id                   String    @id @default(cuid())
+  workspaceId          String
+  provider             String    // instagram | facebook | whatsapp | telegram | tiktok | youtube | linkedin | x | email | webhook | sheets | zapier ...
+  status               String    @default("DISCONNECTED")
+  encryptedCredentials String?   // AES-256-GCM ciphertext (never plaintext)
+  // Last failure detail, JSON: { code, message, at }. Drives the honest
+  // 8-state connection model (failed / permission_missing / reauth_required).
+  // Never contains tokens or secrets — only safe, user-facing messages.
+  statusDetail         String?
+  externalAccountId  String?    // page id / IG user id / WhatsApp phone_number_id — for webhook→workspace matching
+  // Batch B (multi-account): the deterministic default account for its
+  // (workspace, provider) pair — at most one row per pair has this true.
+  // Adapter resolution uses it instead of "first row of a query".
+  isDefault          Boolean   @default(false)
+  accountName        String?    // display name retrieved from the provider's identity API (never guessed)
+  accountAvatarUrl   String?    // profile image URL from the provider (null when unavailable)
+  capabilities         String    @default("[]") // JSON array of Capability strings
+  limitations          String    @default("[]") // JSON array of human-readable limitation strings
+  requiredPermissions  String    @default("[]") // JSON array
+  lastSyncAt           DateTime?
+  verifiedAt           DateTime? // set only after a real verification handshake
+  lastError            String?   // last provider error message (never includes credentials)
+  lastErrorAt          DateTime? // when the last provider error was recorded
+  // v0.4.0: webhook subscription state, written by the resubscribe probe
+  // and the health checks (null = never confirmed via API).
+  webhookSubscribedAt      DateTime?
+  webhookSubscriptionDetail String? // sanitized JSON: { fields, checkedAt } — never secrets
+  createdAt            DateTime  @default(now())
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  retargetingCampaigns RetargetingCampaign[]
+
+  // Batch B (multi-account): multiple accounts of the SAME provider may
+  // coexist in one workspace, keyed by their provider-side identity.
+  // SQLite treats NULL externalAccountId rows as distinct, so legacy
+  // placeholder/demo rows (externalAccountId = null) never collide.
+  @@unique([workspaceId, provider, externalAccountId])
+  @@index([workspaceId])
+  @@index([externalAccountId])
+}
+
+// Lead stages: NEW | CONTACTED | QUALIFIED | INTERESTED | CONVERTED | LOST
+model Contact {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  externalIds   String   @default("{}") // JSON: { provider: externalId } — channel-specific identity mapping
+  channel       String   @default("web") // source channel
+  email         String?
+  phone         String?
+  tags          String   @default("[]") // JSON array
+  customFields  String   @default("{}") // JSON
+  leadStatus    String   @default("NEW")
+  leadScore     Int      @default(0)
+  consent       String   @default("{}") // JSON: opt-ins per channel
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  // Set on every inbound channel message/comment (webhook or history sync).
+  // Drives the 24h messaging-window eligibility checker.
+  lastInboundAt DateTime?
+  // Set on every successful outbound follow-up send. Complements
+  // lastInboundAt (inbound) for window/engagement analytics.
+  lastOutboundAt DateTime?
+  assignedTo    String?
+  notes         String   @default("")
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  comments      Comment[]
+  suppressions  Suppression[]
+  consentRecords ConsentRecord[]
+  followUps     FollowUp[]
+  outboundSends OutboundSend[]
+  campaignRecipients CampaignRecipient[]
+  escalations   Escalation[]
+  contactOrders ContactOrder[]
+  customerEvents CustomerEvent[]
+  retargetingRecipients RetargetingRecipient[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, leadStatus])
+}
+
+// Conversation status: OPEN | PENDING | RESOLVED
+model Conversation {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contactId   String
+  // Batch B: the exact connected account this conversation belongs to
+  // (nullable for legacy/web rows created before account scoping).
+  integrationId String?
+  channel     String
+  status      String   @default("OPEN")
+  assignedTo  String?
+  aiHandled   Boolean  @default(false)
+  priority    String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  // Stage 4a: human takeover pauses AI/automation for this conversation;
+  // composingBy/composingAt track live typing presence (90s lazy expiry).
+  humanTakeover Boolean  @default(false)
+  composingBy   String?
+  composingAt   DateTime?
+  tags        String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messages    Message[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, contactId]) // perf: contact timeline + contact-scoped conversation lookups
+  @@index([workspaceId, integrationId]) // Batch B: account-scoped inbox filtering
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  direction      String   // INBOUND | OUTBOUND | INTERNAL_NOTE
+  body           String
+  media          String   @default("[]") // JSON array of attachment refs
+  aiGenerated    Boolean  @default(false)
+  mocked         Boolean  @default(false) // true when produced by the mock adapter (never a real send)
+  internalNote   Boolean  @default(false) // Stage 4a: agent-authored note, never sent anywhere
+  providerMessageId String? // provider-side id (wamid / MID) when known — matches delivery-status webhooks
+  deliveryStatus String?  // provider-reported for OUTBOUND rows: sent | delivered | read | failed
+  createdAt      DateTime @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt])
+}
+
+// Workflow status: DRAFT | PUBLISHED | PAUSED
+model Workflow {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  description String   @default("")
+  status      String   @default("DRAFT")
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  nodes       WorkflowNode[]
+  edges       WorkflowEdge[]
+  executions  WorkflowExecution[]
+  versions    WorkflowVersion[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+}
+
+// Batch C — immutable published-graph snapshots. Written once at publish
+// time under the workflow's then-current version number; never updated
+// afterwards (a version number's graph is fixed forever). Executions pin
+// to a snapshot via WorkflowExecution.workflowVersion so editing a
+// workflow cannot change what an already-enqueued run executes.
+model WorkflowVersion {
+  id         String   @id @default(cuid())
+  workflowId String
+  version    Int
+  graph      String // JSON: { nodes: [...], edges: [...] } exactly as published
+  createdBy  String? // user id of the publisher, when known
+  createdAt  DateTime @default(now())
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, version])
+  @@index([workflowId])
+}
+
+// Node type values: trigger.* | condition.* | action.* | flow.*
+model WorkflowNode {
+  id         String   @id @default(cuid())
+  workflowId String
+  kind       String   // trigger | condition | action | flow
+  type       String   // e.g. "trigger.new_message"
+  label      String
+  config     String   @default("{}") // JSON node configuration
+  position   String   @default("{\"x\":0,\"y\":0}") // JSON {x,y}
+  disabled   Boolean  @default(false) // builder toggle: engine/simulator skip disabled nodes
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+}
+
+model WorkflowEdge {
+  id         String   @id @default(cuid())
+  workflowId String
+  sourceId   String
+  targetId   String
+  label      String   @default("")
+  condition  String   @default("{}") // JSON branch condition (for if/else)
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+}
+
+// Execution status: QUEUED | RUNNING | SUCCEEDED | FAILED | DEAD_LETTER | DRY_RUN
+model WorkflowExecution {
+  id             String   @id @default(cuid())
+  workflowId     String
+  // Batch B: the connected account this execution is scoped to — from the
+  // trigger event's account when present, else the account an action
+  // resolved. Null for account-less triggers (manual/scheduled).
+  integrationId  String?
+  // Batch C: the workflow version this execution is pinned to. Set at
+  // enqueue time; the processor runs the WorkflowVersion snapshot for
+  // this (workflowId, workflowVersion) when one exists. Null on rows
+  // created before versioning shipped.
+  workflowVersion Int?
+  triggerEvent   String   @default("{}") // JSON of the triggering event
+  status         String   @default("QUEUED")
+  idempotencyKey String   @unique
+  dryRun         Boolean  @default(false)
+  error          String?
+  attempts       Int      @default(0)
+  startedAt      DateTime @default(now())
+  finishedAt     DateTime?
+  workflow       Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  steps          ExecutionStep[]
+
+  @@index([workflowId])
+  @@index([workflowId, startedAt])
+}
+
+model ExecutionStep {
+  id          String   @id @default(cuid())
+  executionId String
+  nodeId      String
+  nodeLabel   String   @default("")
+  status      String   // SKIPPED | RUNNING | SUCCEEDED | FAILED
+  input       String   @default("{}")
+  output      String   @default("{}")
+  error       String?
+  createdAt   DateTime @default(now())
+  execution   WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+}
+
+// Campaign status: DRAFT | SCHEDULED | RUNNING | PAUSED | CANCELLED | COMPLETED | FAILED
+// (legacy values SENDING / SENT may still appear on older rows).
+model Campaign {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  name          String
+  objective     String    @default("")
+  channel       String    // instagram | facebook | whatsapp
+  status        String    @default("DRAFT")
+  audience      String    @default("{}") // JSON segment definition
+  message       String    @default("{}") // JSON message template + variables
+  scheduledAt   DateTime?
+  // Stage 3: audience source + send configuration.
+  segmentId     String?   // optional ContactSegment used to build the recipient list
+  templateId    String?   // optional MessageTemplate (body wins over message JSON)
+  messageType   String    @default("freeform") // freeform | template | private_reply
+  ratePerSecond Float     @default(1) // rate cap applied between sends
+  startedAt     DateTime?
+  completedAt   DateTime?
+  pauseOnReply  Boolean   @default(true) // auto-pause the wave when a recipient replies
+  createdAt     DateTime  @default(now())
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  segment       ContactSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  template      MessageTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  recipients    CampaignRecipient[]
+  approvals     CampaignApproval[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+}
+
+// Stage 3 — one row per (campaign, contact). The pre-send eligibility verdict
+// (PENDING vs SKIPPED) is computed at build time and RE-CHECKED at send time.
+// Status: PENDING | SKIPPED | SENT | FAILED | REPLIED.
+model CampaignRecipient {
+  id                String    @id @default(cuid())
+  campaignId        String
+  contactId         String
+  status            String    @default("PENDING")
+  skipReason        String?   // human-readable reason(s) when SKIPPED
+  idempotencyKey    String    @unique // campaign:<campaignId>:contact:<contactId>
+  sentAt            DateTime?
+  providerMessageId String?
+  mocked            Boolean?  // true when the send went through the mock adapter
+  error             String?
+  // Set from a real inbound event (never estimated) when the contact replies
+  // while the campaign is RUNNING.
+  repliedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  campaign          Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact           Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId, status])
+}
+
+model AudienceSegment {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  description String   @default("")
+  filters     String   @default("{}") // legacy simple filters (kept for compat)
+  // Phase 3B: structured condition tree { op: "and"|"or", rules: [...] }.
+  // Rules reference contact/conversation/message/order attributes, e.g.
+  // { field: "tag", operator: "contains", value: "vip" },
+  // { field: "lastInboundAt", operator: "older_than_days", value: 30 },
+  // { field: "channel", operator: "eq", value: "instagram" },
+  // { field: "purchaseCount", operator: "gte", value: 1 },
+  // { field: "abandonedCart", operator: "eq", value: true }.
+  conditions  String   @default("{\"op\":\"and\",\"rules\":[]}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  retargetingCampaigns RetargetingCampaign[]
+
+  @@index([workspaceId])
+}
+
+model AiConfig {
+  id                  String   @id @default(cuid())
+  workspaceId         String   @unique
+  assistantName       String   @default("FlowPilot Assistant")
+  businessName        String   @default("")
+  businessDescription String   @default("")
+  brandVoice          String   @default("friendly")
+  tone                String   @default("professional")
+  responseLength      String   @default("concise")
+  languages           String   @default("[\"en\"]")
+  businessHours       String   @default("{}")
+  escalationRules     String   @default("{}")
+  confidenceThreshold Float    @default(0.7)
+  requireApproval     Boolean  @default(true)
+  fallbackResponse    String   @default("Thanks for reaching out! A team member will get back to you shortly.")
+  prohibitedTopics    String   @default("[]")
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model KnowledgeDoc {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String
+  content     String
+  embeddingRef String  @default("")
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chunks      KnowledgeChunk[]
+
+  @@index([workspaceId])
+}
+
+// Stage 4c: text chunks used by keyword retrieval to ground AI replies.
+// Chunks are rebuilt (delete + recreate) whenever the source doc changes.
+model KnowledgeChunk {
+  id          String   @id @default(cuid())
+  docId       String
+  workspaceId String
+  chunkIndex  Int
+  content     String
+  createdAt   DateTime @default(now())
+  doc         KnowledgeDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, docId])
+}
+
+// Stage 4c: AI replies held back from auto-send — low confidence or human
+// approval required. A human reviews and resolves them from the AI page.
+// Status: OPEN | RESOLVED
+model Escalation {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  conversationId String?
+  contactId      String?
+  reason         String
+  status         String   @default("OPEN")
+  resolvedAt     DateTime?
+  createdAt      DateTime @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact        Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+}
+
+// Approval status: PENDING | APPROVED | REJECTED
+model ApprovalRequest {
+  id          String   @id @default(cuid())
+  workspaceId String
+  executionId String?
+  action      String   // JSON description of the proposed action
+  status      String   @default("PENDING")
+  decidedBy   String?
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+}
+
+// Inbound comments on owned media/posts (Instagram media, Facebook Page posts).
+// Persisted from feed webhooks; drives the 7-day private-reply eligibility window.
+model Comment {
+  id                     String    @id @default(cuid())
+  workspaceId            String
+  contactId              String?   // author, when we could resolve one
+  integrationId          String    // integration that produced the event
+  externalId             String    @unique // Meta comment ID
+  authorExternalId       String
+  authorName             String?
+  mediaId                String
+  mediaType              String?   // IMAGE | VIDEO | CAROUSEL_ALBUM | post ...
+  text                   String    @default("")
+  commentedAt            DateTime
+  privateRepliedAt       DateTime? // set when a private reply was sent for this comment
+  // commentedAt + 7 days: Meta's private-reply window (error 551 after).
+  privateReplyEligibleUntil DateTime
+  createdAt              DateTime  @default(now())
+  workspace              Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact                Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, commentedAt])
+  @@index([workspaceId, contactId]) // perf: contact timeline comment lookup
+}
+
+// Opt-outs / do-not-contact flags. Any row blocks all outbound messaging to
+// the contact (see eligibility checker), optionally scoped per channel.
+model Suppression {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contactId   String
+  channel     String?  // null = all channels
+  reason      String   @default("")
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, contactId, channel])
+}
+
+// Reusable message templates. Body supports {{name}} {{firstName}} variables.
+// WhatsApp templates must be approved in Meta before use (Meta-side).
+model MessageTemplate {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  channel     String   // instagram | facebook | whatsapp
+  body        String
+  variables   String   @default("[]") // JSON array of variable names
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  followUps   FollowUp[]
+  campaigns   Campaign[]
+
+  @@index([workspaceId, channel])
+}
+
+// An individual outbound message request — immediate or scheduled.
+// Status: SCHEDULED | SENT | CANCELLED | FAILED
+// The send pipeline (src/lib/messaging/send.ts) re-checks eligibility at
+// send time and records every attempt in OutboundSend (SENT | FAILED | SKIPPED).
+model FollowUp {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  contactId      String
+  channel        String    // instagram | facebook | whatsapp
+  messageType    String    // freeform | template | private_reply
+  templateId     String?
+  body           String    @default("") // raw body (may contain {{name}} variables); template body copied in at create time when templateId is set
+  commentId      String?   // Comment.externalId for private_reply
+  scheduledAt    DateTime
+  status         String    @default("SCHEDULED")
+  idempotencyKey String    @unique
+  createdBy      String?
+  sentAt         DateTime?
+  cancelReason   String?
+  createdAt      DateTime  @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact        Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  template       MessageTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  outboundSends  OutboundSend[]
+
+  @@index([workspaceId, status, scheduledAt])
+}
+
+// Every send attempt through the pipeline — the audit-grade record of what
+// left (or did not leave) the building. Status: SENT | FAILED | SKIPPED.
+// campaignId is set for Stage 3 bulk sends (nullable).
+model OutboundSend {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  // Batch B: the exact connected account the send went through
+  // (null = mock/demo path with no connected account).
+  integrationId      String?
+  contactId          String
+  followUpId         String?
+  campaignId         String?
+  channel            String
+  messageType        String
+  body               String
+  idempotencyKey     String   @unique
+  status             String   // SENT | FAILED | SKIPPED (SENT = provider API accepted the request)
+  providerMessageId  String?
+  deliveryStatus     String?  // provider-reported: sent | delivered | read | failed (null = no status webhook yet)
+  deliveryStatusAt   DateTime?
+  mocked             Boolean  @default(false) // true when the mock adapter "sent" it — never a real send
+  error              String?
+  createdAt          DateTime @default(now())
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact            Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  followUp           FollowUp? @relation(fields: [followUpId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, integrationId])
+}
+
+// Saved contact filter definitions (stored JSON, applied by GET /api/contacts).
+model ContactSegment {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  filters     String   @default("{}") // JSON: { channel?, tag?, leadStatus?, from?, to?, search? }
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaigns   Campaign[]
+
+  @@index([workspaceId])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  action      String
+  entity      String   @default("{}") // JSON {type, id, diff}
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, action, createdAt]) // perf: audit log filtered by action, ordered by recency
+}
+
+// Stage 4d — SaaS plan limits (server-side enforced usage metering).
+//
+// One row per (workspace, month). Counters are incremented by
+// recordUsage() in src/lib/billing/usage.ts. Replaces the old per-metric
+// event rows (metric/quantity/period) — callers use trackUsage(), which
+// maps legacy metric names onto these counters.
+model UsageRecord {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  month            String   // "YYYY-MM"
+  messagesSent     Int      @default(0)
+  messagesReceived Int      @default(0)
+  workflowsRun     Int      @default(0)
+  automationsRun   Int      @default(0)
+  apiCalls         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, month])
+}
+
+// Stage 4d — billable plan tiers. Limits are enforced server-side by
+// requirePlanLimit() in src/lib/billing/usage.ts. Seeded by
+// src/db/seed-plans.ts (idempotent upserts by name).
+model Plan {
+  id                  String   @id @default(cuid())
+  name                String   @unique // "Starter" | "Growth" | "Agency"
+  monthlyMessageLimit Int
+  workflowLimit       Int
+  seatLimit           Int
+  // Batch B: max simultaneously connected accounts per workspace
+  // (enforced at connect time; default = Starter value, seed sets per-plan).
+  connectedAccountLimit Int @default(3)
+  features            String   @default("[]") // JSON array of feature strings
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  workspaces          Workspace[]
+}
+
+// Stage 4e — order ↔ contact links. `verified`/`source` are copied from the
+// provider result at link time so the UI can always show the provenance.
+model ContactOrder {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contactId   String
+  orderId     String
+  verified    Boolean  @default(false)
+  source      String   @default("mock") // "mock" | "api"
+  linkedAt    DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, orderId])
+  @@index([workspaceId, contactId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3A — unified customer event log. Every meaningful customer-facing
+// occurrence (inbound/outbound message, comment, workflow run, tag change,
+// opt-out, purchase, campaign interaction, conversion) is recorded here so
+// CRM, retargeting, and analytics share ONE source of truth.
+//
+// Event `type` values (String, SQLite has no enums):
+//   comment_received | conversation_started | message_received |
+//   message_sent | message_delivered | message_failed | workflow_executed |
+//   contact_tagged | segment_changed | opted_out | consent_changed |
+//   purchase_recorded | campaign_interaction | conversion_attributed
+//
+// Idempotency: (workspaceId, providerEventId) is UNIQUE — re-ingesting the
+// same webhook never creates a duplicate event. Rows without a
+// providerEventId (NULL) are always inserted (SQLite treats NULLs as
+// distinct). Tenant isolation: every query MUST scope by workspaceId.
+// ---------------------------------------------------------------------------
+model CustomerEvent {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  contactId       String?
+  integrationId   String?  // Batch B: connected account the event came through (nullable)
+  type            String
+  provider        String?  // instagram | facebook | whatsapp | tiktok | system | store
+  providerEventId String?  // MID, comment ID, webhook delivery ID — dedupe key
+  timestamp       DateTime @default(now())
+  source          String   @default("system") // webhook | api | engine | campaign | import
+  metadata        String   @default("{}")     // JSON: free-form event payload
+  attribution     String   @default("{}")     // JSON: campaignId, workflowId, etc.
+  createdAt       DateTime @default(now())
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact         Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, providerEventId])
+  @@index([workspaceId, type])
+  @@index([workspaceId, contactId])
+  @@index([workspaceId, timestamp])
+  @@index([workspaceId, integrationId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3B — retargeting. AudienceSegment is extended (was a stub with only
+// `filters`): `conditions` carries the AND/OR condition tree used by the
+// segment evaluator; `filters` is kept for backward compatibility.
+// ---------------------------------------------------------------------------
+// RetargetingCampaign is DISTINCT from Campaign (bulk messaging waves).
+// `type` values: dm_reengagement | email | paid_ad | comment_to_dm | crm_sequence
+// `status` values: draft | scheduled | running | paused | completed | cancelled
+model RetargetingCampaign {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  type          String   // dm_reengagement | email | paid_ad | comment_to_dm | crm_sequence
+  status        String   @default("draft")
+  channel       String?  // instagram | facebook | whatsapp | email (null for paid_ad)
+  integrationId String?
+  segmentId     String?
+  objective     String   @default("")
+  message       String   @default("{}") // JSON: message template + variables / ad creative refs
+  schedule      String   @default("{}") // JSON: { startsAt, endsAt, timezone, frequencyCap }
+  budget        String   @default("{}") // JSON: { amount, currency } — paid_ad only
+  dryRun        Boolean  @default(false)
+  confirmedAt   DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  segment       AudienceSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  integration   Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  recipients    RetargetingRecipient[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, type])
+}
+
+model RetargetingRecipient {
+  id             String   @id @default(cuid())
+  campaignId     String
+  contactId      String
+  status         String   @default("pending") // pending | sent | delivered | failed | skipped | replied
+  eligibility    String   @default("{}")       // JSON: eligibility verdict at review time
+  idempotencyKey String   @unique              // retargeting:<campaignId>:contact:<contactId>
+  attempts       Int      @default(0)
+  lastError      String?
+  sentAt         DateTime?
+  campaign       RetargetingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact        Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId, status])
+}
+
+// Phase 4 — Onboarding progress (per user per workspace). Additive; never reset existing tables.
+// stepsDone / skipped: JSON arrays of step ids. data: JSON object for step payloads
+// (locale, timezone, useCase, chosenTemplateId, ...). completedAt set when the user
+// finishes or skips all remaining steps.
+model OnboardingProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  workspaceId String
+  currentStep Int       @default(0)
+  stepsDone   String    @default("[]")
+  skipped     String    @default("[]")
+  data        String    @default("{}")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+// Workstream A (public-beta readiness) — auth lifecycle + support tickets.
+// All additive; existing tables untouched.
+
+// Email verification: one active 6-digit code per user. The plaintext code is
+// NEVER stored — only its SHA-256 hash. 15-minute expiry, 5-attempt lockout
+// (attempts counted on the row).
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Password reset: single-use tokens. The raw token is emailed to the user;
+// only its SHA-256 hash is stored. 1-hour expiry, usedAt set on first use.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Support tickets filed from the app. Status values: OPEN | IN_PROGRESS | RESOLVED | CLOSED.
+model SupportTicket {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  subject     String
+  message     String
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+}
+
+// ── v0.4.0 additions (all additive; no existing model altered incompatibly) ──
+
+// One health-probe result per check. Probes never store credentials or tokens;
+// `detail` is sanitized JSON (probe-specific safe fields only).
+// probe values: token | identity | webhook | scopes | config | send_path
+// status values: OK | DEGRADED | FAILED | BLOCKED
+model HealthCheck {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  integrationId String   // plain string FK by convention (see Integration notes)
+  probe         String
+  status        String
+  latencyMs     Int?
+  detail        String   @default("{}")
+  createdAt     DateTime @default(now())
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, integrationId, createdAt])
+}
+
+// Instagram Comment-to-DM automation rules. One rule targets one post/Reel
+// (mediaId) on one connected account; many rules may target the same post
+// with different keywords/messages. Sends go through the official private
+// reply API only, within the provider's eligibility window.
+model CommentDmRule {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  integrationId   String   // plain string FK by convention
+  name            String
+  mediaId         String   // Instagram media id (post or Reel)
+  mediaPermalink  String?
+  keywords        String   @default("[]") // JSON string[]
+  matchMode       String   @default("contains") // contains | exact | startsWith
+  caseSensitive   Boolean  @default(false)
+  commentReply    String?  // public comment reply, where the API permits it
+  dmTemplate      String?  // private reply body; {{name}} etc. from verified data only
+  timezone        String   @default("UTC")
+  enabled         Boolean  @default(true)
+  dryRun          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  events          CommentDmEvent[]
+
+  @@index([workspaceId, integrationId, mediaId])
+}
+
+// One processed comment per rule. The unique triple is the dedupe guarantee:
+// a redelivered webhook event for the same comment + rule can never double-send.
+// status values: DRY_RUN | SENT | FAILED | SKIPPED
+model CommentDmEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  ruleId      String
+  commentId   String   // Meta comment id
+  matched     Boolean
+  keyword     String?
+  actions     String   @default("[]") // JSON: [{type, status, detail}]
+  status      String
+  error       String?
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  rule        CommentDmRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, ruleId, commentId])
+  @@index([workspaceId, ruleId, createdAt])
+}
+
+// AI Prospecting searches. No search provider is configured in v0.4.0, so
+// searches land in BLOCKED_NO_SOURCE with the exact prerequisite instead of
+// fabricated results. Prospects are only ever created from user input or
+// imports (sourceType manual|import), never invented by the system.
+// status values: DRAFT | BLOCKED_NO_SOURCE | RUNNING | COMPLETED | FAILED
+model ProspectSearch {
+  id          String   @id @default(cuid())
+  workspaceId String
+  industry    String
+  country     String?
+  region      String?
+  businessType String?
+  icp         String   @default("{}") // JSON ideal-customer-profile
+  keywords    String   @default("[]")
+  exclusions  String   @default("[]")
+  targetCount Int      @default(25)
+  status      String   @default("DRAFT")
+  provider    String?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  prospects   Prospect[]
+
+  @@index([workspaceId, createdAt])
+}
+
+// A prospect record. Contact fields are nullable and must come from a real
+// source (sourceUrl) or explicit user input — the system never invents an
+// email, phone, revenue, or employee. qualificationReasons is JSON explaining
+// the score in the user's own criteria terms.
+// status values: NEW | QUALIFIED | REJECTED | CONTACTED
+model Prospect {
+  id                   String   @id @default(cuid())
+  workspaceId          String
+  searchId             String?
+  businessName         String
+  industry             String?
+  website              String?
+  email                String?
+  phone                String?
+  socials              String   @default("{}")
+  country              String?
+  region               String?
+  description          String?
+  sourceUrl            String?
+  sourceType           String   @default("manual") // manual | import | search
+  qualificationScore   Int?
+  qualificationReasons String   @default("[]")
+  confidence           String?  // LOW | MEDIUM | HIGH
+  status               String   @default("NEW")
+  notes                String   @default("")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  search               ProspectSearch? @relation(fields: [searchId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, website])
+  @@index([workspaceId, status])
+}
+
+// Per-channel consent ledger. This is the durable record; Suppression rows
+// remain the enforcement mechanism for opt-outs. Import and campaign code
+// must consult both: a suppression always wins over a stale OPTED_IN row.
+// status values: OPTED_IN | OPTED_OUT
+model ConsentRecord {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  contactId      String
+  channel        String
+  status         String
+  source         String   @default("") // import | webhook | manual | campaign | api
+  wordingVersion String?
+  createdAt      DateTime @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact        Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, contactId, channel])
+}
+
+// Customer import batches. The legacy direct-import route is unchanged; this
+// batch flow adds preview → mapping → confirm. Rows are never silently
+// merged: a DUPLICATE row needs an explicit resolution (create|merge|skip)
+// chosen at confirm time, and suppressed contacts are never re-added to
+// campaigns by an import (their Suppression rows survive because dedupe
+// merges into the existing contact instead of creating a second row).
+// batch status values: PREVIEW | CONFIRMED | FAILED
+// row status values: PENDING | VALID | INVALID | DUPLICATE | IMPORTED | SKIPPED
+model ImportBatch {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  filename       String
+  status         String   @default("PREVIEW")
+  totalRows      Int      @default(0)
+  importedCount  Int      @default(0)
+  skippedCount   Int      @default(0)
+  failedCount    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  rows           ImportRow[]
+
+  @@index([workspaceId, createdAt])
+}
+
+model ImportRow {
+  id         String   @id @default(cuid())
+  batchId    String
+  rowIndex   Int
+  raw        String   @default("{}") // JSON: original row values
+  mapped     String   @default("{}") // JSON: mapped contact fields
+  status     String   @default("PENDING")
+  errors     String   @default("[]") // JSON string[]
+  resolution String?  // create | merge | skip
+  contactId  String?
+  batch      ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId, rowIndex])
+}
+
+// Durable background jobs (v0.4.0). The in-memory queue in src/lib/queue.ts
+// is replaced by this table for new job types; workflow execution jobs keep
+// working through the same enqueue interface. A job is claimed by exactly
+// one worker run (status transition QUEUED → RUNNING inside a transaction);
+// retries use exponential backoff with jitter; exhausted jobs go DEAD_LETTER.
+// status values: QUEUED | RUNNING | SUCCEEDED | FAILED | DEAD_LETTER
+model BackgroundJob {
+  id             String   @id @default(cuid())
+  workspaceId    String?
+  type           String
+  payload        String   @default("{}")
+  status         String   @default("QUEUED")
+  attempts       Int      @default(0)
+  maxAttempts    Int      @default(3)
+  notBefore      DateTime @default(now())
+  idempotencyKey String?  @unique
+  lastError      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status, notBefore])
+  @@index([workspaceId, createdAt])
+}
+
+// Campaign approval gate (opt-in per campaign). A campaign with a PENDING
+// approval request cannot start; APPROVED clears the gate, REJECTED blocks
+// it until a new request is approved. Campaigns without any approval request
+// are unaffected (backward compatible).
+// status values: PENDING | APPROVED | REJECTED
+model CampaignApproval {
+  id          String   @id @default(cuid())
+  workspaceId String
+  campaignId  String
+  requestedBy String
+  status      String   @default("PENDING")
+  decidedBy   String?
+  decidedAt   DateTime?
+  note        String   @default("")
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, campaignId, createdAt])
+}

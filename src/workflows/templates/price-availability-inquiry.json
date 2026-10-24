@@ -1,0 +1,97 @@
+{
+  "id": "price-availability-inquiry",
+  "name": "Price & Availability Inquiry",
+  "description": "Handle pricing and stock questions on website chat with instant answers.",
+  "category": "Sales",
+  "trigger": "trigger.new_message",
+  "requiredIntegrations": [
+    "webchat"
+  ],
+  "requiredPermissions": [
+    "messages:send"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.new_message",
+      "label": "New message",
+      "config": {},
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "c1",
+      "kind": "condition",
+      "type": "condition.keyword_contains",
+      "label": "Mentions price?",
+      "config": {
+        "keyword": "price"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "c2",
+      "kind": "condition",
+      "type": "condition.keyword_contains",
+      "label": "Asks availability?",
+      "config": {
+        "keyword": "available"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.send_message",
+      "label": "Send price & stock info",
+      "config": {
+        "channel": "webchat",
+        "body": "Great question! Pricing starts at $29/mo and all plans are available immediately. Want me to send the full breakdown?"
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "c1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "c1",
+      "targetId": "c2",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "c2",
+      "targetId": "a1",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "Is the Growth plan available?",
+    "What's the price and is it in stock?"
+  ],
+  "publishChecklist": [
+    "Keep pricing copy up to date",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "Static reply copy — connect the AI reply node for dynamic answers"
+  ]
+}

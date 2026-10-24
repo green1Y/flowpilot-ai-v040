@@ -1,0 +1,100 @@
+{
+  "id": "whatsapp-support",
+  "name": "WhatsApp Support Bot",
+  "description": "First-line WhatsApp support: AI drafts the reply, team gets an internal note for visibility.",
+  "category": "Support",
+  "trigger": "trigger.new_message",
+  "requiredIntegrations": [
+    "whatsapp"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "ai:generate",
+    "conversations:write"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.new_message",
+      "label": "New WhatsApp message",
+      "config": {},
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "c1",
+      "kind": "condition",
+      "type": "condition.channel_is",
+      "label": "Is WhatsApp?",
+      "config": {
+        "channel": "whatsapp"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.ai_reply",
+      "label": "AI support reply",
+      "config": {
+        "confidenceThreshold": 0.8
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.internal_note",
+      "label": "Log for team",
+      "config": {
+        "note": "WhatsApp support handled by AI (confidence-checked)."
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "c1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "c1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "My order hasn't arrived yet",
+    "Do you deliver on weekends?"
+  ],
+  "publishChecklist": [
+    "Connect WhatsApp Business and verify templates",
+    "Set the confidence threshold",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "AI replies are mock-generated until a real AI provider is configured",
+    "Business-initiated messages need approved templates"
+  ]
+}

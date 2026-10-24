@@ -1,0 +1,97 @@
+{
+  "id": "website-chat-lead-capture",
+  "name": "Website Chat Lead Capture",
+  "description": "Greet new website chat visitors, ask for contact details, and capture them as leads.",
+  "category": "Messaging",
+  "trigger": "trigger.new_conversation",
+  "requiredIntegrations": [
+    "webchat"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "crm:write"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.new_conversation",
+      "label": "New chat started",
+      "config": {},
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "c1",
+      "kind": "condition",
+      "type": "condition.channel_is",
+      "label": "Is webchat?",
+      "config": {
+        "channel": "webchat"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.send_message",
+      "label": "Greeting + ask details",
+      "config": {
+        "channel": "webchat",
+        "body": "Hi there! Welcome — what's your name and email so we can help you properly?"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.create_lead",
+      "label": "Capture lead",
+      "config": {
+        "name": "Webchat visitor"
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "c1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "c1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "(visitor opens chat widget)"
+  ],
+  "publishChecklist": [
+    "Embed the FlowPilot chat widget on your site",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "Lead name/email capture from free text requires a follow-up parsing step"
+  ]
+}

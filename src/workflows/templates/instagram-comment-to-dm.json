@@ -1,0 +1,120 @@
+{
+  "id": "instagram-comment-to-dm",
+  "name": "Instagram Comment → DM",
+  "description": "Reply publicly to Instagram comments asking about price, then follow up in DM with pricing details and tag the lead.",
+  "category": "Social",
+  "trigger": "trigger.new_comment",
+  "requiredIntegrations": [
+    "instagram"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "crm:write"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.new_comment",
+      "label": "New Instagram comment",
+      "config": {},
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "c1",
+      "kind": "condition",
+      "type": "condition.comment_matches",
+      "label": "Asking about price?",
+      "config": {
+        "phrase": "price"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.reply_comment",
+      "label": "Public reply",
+      "config": {
+        "body": "Thanks for asking! We've just sent you a DM with the details."
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.send_message",
+      "label": "Send pricing DM",
+      "config": {
+        "channel": "instagram",
+        "body": "Hi {{name}}! Here's our pricing:\n\nStarter — $29/mo\nGrowth — $79/mo\n\nWant a quick tour? Reply TOUR."
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    },
+    {
+      "id": "a3",
+      "kind": "action",
+      "type": "action.add_tag",
+      "label": "Tag pricing lead",
+      "config": {
+        "tag": "pricing-interest"
+      },
+      "position": {
+        "x": 1180,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "c1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "c1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "sourceId": "a2",
+      "targetId": "a3",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "How much does it cost?",
+    "price please!",
+    "What are your prices?"
+  ],
+  "publishChecklist": [
+    "Connect the Instagram integration and verify the Business account",
+    "Publish this workflow",
+    "Test with a sample comment event"
+  ],
+  "limitations": [
+    "DM sends are simulated until Instagram is connected",
+    "Comment-to-DM must follow Meta messaging policies"
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "id": "human-handoff",
+  "name": "Human Handoff",
+  "description": "When a visitor asks for a human, route the conversation to support and notify the team.",
+  "category": "Support",
+  "trigger": "trigger.keyword",
+  "requiredIntegrations": [
+    "webchat"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "conversations:assign",
+    "team:notify"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.keyword",
+      "label": "Says 'human'",
+      "config": {
+        "keyword": "human"
+      },
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.assign_conversation",
+      "label": "Assign to support",
+      "config": {
+        "assignee": "support"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.send_message",
+      "label": "Handoff message",
+      "config": {
+        "channel": "webchat",
+        "body": "Of course — connecting you with a human agent now. One moment!"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a3",
+      "kind": "action",
+      "type": "action.notify_team",
+      "label": "Notify team",
+      "config": {
+        "message": "Handoff requested by {{name}} on webchat."
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "a2",
+      "targetId": "a3",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "I want to talk to a human",
+    "Can a real person help me?"
+  ],
+  "publishChecklist": [
+    "Staff the support queue",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "Notifications are written to the audit log (in-app) in this build"
+  ]
+}

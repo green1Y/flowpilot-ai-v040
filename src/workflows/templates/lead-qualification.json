@@ -1,0 +1,96 @@
+{
+  "id": "lead-qualification",
+  "name": "Lead Qualification Router",
+  "description": "Route new leads by score: hot leads go straight to sales, everyone else enters nurture.",
+  "category": "Sales",
+  "trigger": "trigger.new_lead",
+  "requiredIntegrations": [],
+  "requiredPermissions": [
+    "crm:write",
+    "conversations:assign"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.new_lead",
+      "label": "New lead",
+      "config": {},
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "f1",
+      "kind": "flow",
+      "type": "flow.if_else",
+      "label": "Hot lead?",
+      "config": {
+        "expression": "leadScore >= 70"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.assign_conversation",
+      "label": "Assign to sales",
+      "config": {
+        "assignee": "sales"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.add_tag",
+      "label": "Tag for nurture",
+      "config": {
+        "tag": "nurture"
+      },
+      "position": {
+        "x": 620,
+        "y": 280
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "f1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "f1",
+      "targetId": "a1",
+      "label": "true"
+    },
+    {
+      "id": "e3",
+      "sourceId": "f1",
+      "targetId": "a2",
+      "label": "false"
+    }
+  ],
+  "sampleMessages": [
+    "New lead: score 85",
+    "New lead: score 30"
+  ],
+  "publishChecklist": [
+    "Define your lead scoring rules",
+    "Set the hot-lead threshold",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "Lead score must be present on the new_lead event (event.leadScore)"
+  ]
+}

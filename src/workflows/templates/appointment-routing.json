@@ -1,0 +1,101 @@
+{
+  "id": "appointment-routing",
+  "name": "Appointment Routing",
+  "description": "When someone wants to book, send the booking link, route to the bookings queue, and tag the request.",
+  "category": "Operations",
+  "trigger": "trigger.keyword",
+  "requiredIntegrations": [
+    "webchat"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "crm:write",
+    "conversations:assign"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.keyword",
+      "label": "Says 'book'",
+      "config": {
+        "keyword": "book"
+      },
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.send_message",
+      "label": "Send booking link",
+      "config": {
+        "channel": "webchat",
+        "body": "You can grab a slot here: {{bookingUrl}} — anything else I can help with?"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.assign_conversation",
+      "label": "Route to bookings",
+      "config": {
+        "assignee": "bookings"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a3",
+      "kind": "action",
+      "type": "action.add_tag",
+      "label": "Tag appointment request",
+      "config": {
+        "tag": "appointment-request"
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "a2",
+      "targetId": "a3",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "I'd like to book a demo",
+    "Can I book a call?"
+  ],
+  "publishChecklist": [
+    "Set your booking URL ({{bookingUrl}} placeholder)",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "The booking link placeholder must be supplied on the event or as a default"
+  ]
+}

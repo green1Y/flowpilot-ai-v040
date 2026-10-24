@@ -1,0 +1,81 @@
+{
+  "id": "feedback-collection",
+  "name": "Feedback Collection",
+  "description": "After a conversation is resolved, ask for a quick 1–5 rating and track who was asked.",
+  "category": "Operations",
+  "trigger": "trigger.tag_added",
+  "requiredIntegrations": [
+    "email"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "crm:write"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.tag_added",
+      "label": "Tagged 'resolved'",
+      "config": {
+        "tag": "resolved"
+      },
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.send_message",
+      "label": "Ask for feedback",
+      "config": {
+        "channel": "email",
+        "body": "How was your experience with us? Just reply with a number from 1 (poor) to 5 (great)!"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.add_tag",
+      "label": "Tag feedback requested",
+      "config": {
+        "tag": "feedback-requested"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "(contact tagged resolved)"
+  ],
+  "publishChecklist": [
+    "Connect the email integration",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "Email sends are simulated until the email provider is connected",
+    "Rating parsing from free-text replies is not included"
+  ]
+}

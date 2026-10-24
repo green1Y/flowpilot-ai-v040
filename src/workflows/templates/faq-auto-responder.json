@@ -1,0 +1,99 @@
+{
+  "id": "faq-auto-responder",
+  "name": "FAQ Auto-Responder",
+  "description": "Detect FAQ intents in inbound messages and answer instantly with the AI assistant.",
+  "category": "Messaging",
+  "trigger": "trigger.new_message",
+  "requiredIntegrations": [
+    "webchat"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "ai:generate"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.new_message",
+      "label": "New message",
+      "config": {},
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "c1",
+      "kind": "condition",
+      "type": "condition.ai_intent",
+      "label": "Is FAQ intent?",
+      "config": {
+        "intent": "faq"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.ai_reply",
+      "label": "AI answers FAQ",
+      "config": {
+        "confidenceThreshold": 0.7
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.add_tag",
+      "label": "Tag FAQ handled",
+      "config": {
+        "tag": "faq-handled"
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "c1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "c1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "What is your refund policy?",
+    "How long does shipping take?"
+  ],
+  "publishChecklist": [
+    "Add FAQ entries to the knowledge base",
+    "Tune the confidence threshold",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "AI replies are mock-generated until a real AI provider is configured",
+    "Low-confidence answers fall back to the configured fallback response"
+  ]
+}

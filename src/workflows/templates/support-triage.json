@@ -1,0 +1,98 @@
+{
+  "id": "support-triage",
+  "name": "Support Triage",
+  "description": "Urgency check on inbound support messages: urgent issues go straight to the support queue, the rest get an AI first response.",
+  "category": "Support",
+  "trigger": "trigger.new_message",
+  "requiredIntegrations": [
+    "webchat"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "ai:generate",
+    "conversations:assign"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.new_message",
+      "label": "New support message",
+      "config": {},
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "f1",
+      "kind": "flow",
+      "type": "flow.if_else",
+      "label": "Urgent?",
+      "config": {
+        "expression": "text includes urgent"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.assign_conversation",
+      "label": "Escalate to support",
+      "config": {
+        "assignee": "support-urgent"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.ai_reply",
+      "label": "AI first response",
+      "config": {
+        "confidenceThreshold": 0.7
+      },
+      "position": {
+        "x": 620,
+        "y": 280
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "f1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "f1",
+      "targetId": "a1",
+      "label": "true"
+    },
+    {
+      "id": "e3",
+      "sourceId": "f1",
+      "targetId": "a2",
+      "label": "false"
+    }
+  ],
+  "sampleMessages": [
+    "URGENT: checkout is broken!",
+    "How do I reset my password?"
+  ],
+  "publishChecklist": [
+    "Define what counts as urgent for your team",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "Urgency detection is keyword-based in this template"
+  ]
+}

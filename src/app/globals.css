@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* FlowPilot AI design tokens — dark mode default */
+:root {
+  --fp-bg: #0b1020;
+  --fp-bg-2: #11182b;
+  --fp-card: #171f35;
+  --fp-accent: #8b5cf6;
+  --fp-accent-2: #22d3ee;
+  --fp-text: #f8fafc;
+  --fp-text-2: #94a3b8;
+  --fp-border: rgba(148, 163, 184, 0.16);
+
+  /* Phase D — extended tokens */
+  --fp-surface-raised: #1c2540; /* lifted above --fp-card (hover states, menus) */
+  --fp-overlay: rgba(4, 7, 16, 0.72); /* modal / drawer scrims */
+  --fp-line-subtle: #1e2a45; /* hairlines, dividers */
+  --fp-line-strong: rgba(148, 163, 184, 0.38); /* emphasized borders */
+  --fp-text-3: #64748b; /* faint — captions, tertiary text */
+  --fp-info: #38bdf8;
+
+  /* Badge tone tokens (bg / text / border per tone) */
+  --fp-tone-violet-bg: rgba(139, 92, 246, 0.15);
+  --fp-tone-violet-text: #a78bfa;
+  --fp-tone-violet-border: rgba(139, 92, 246, 0.3);
+  --fp-tone-cyan-bg: rgba(34, 211, 238, 0.15);
+  --fp-tone-cyan-text: #67e8f9;
+  --fp-tone-cyan-border: rgba(34, 211, 238, 0.3);
+  --fp-tone-green-bg: rgba(52, 211, 153, 0.15);
+  --fp-tone-green-text: #6ee7b7;
+  --fp-tone-green-border: rgba(52, 211, 153, 0.3);
+  --fp-tone-amber-bg: rgba(251, 191, 36, 0.15);
+  --fp-tone-amber-text: #fcd34d;
+  --fp-tone-amber-border: rgba(251, 191, 36, 0.3);
+  --fp-tone-red-bg: rgba(251, 113, 133, 0.15);
+  --fp-tone-red-text: #fda4af;
+  --fp-tone-red-border: rgba(251, 113, 133, 0.3);
+  --fp-tone-blue-bg: rgba(96, 165, 250, 0.15);
+  --fp-tone-blue-text: #93c5fd;
+  --fp-tone-blue-border: rgba(96, 165, 250, 0.3);
+}
+
+html.light {
+  --fp-bg: #f6f7fb;
+  --fp-bg-2: #ffffff;
+  --fp-card: #ffffff;
+  --fp-text: #0b1020;
+  --fp-text-2: #475569;
+  --fp-border: rgba(11, 16, 32, 0.1);
+
+  /* Phase D — light-mode overrides for every extended token above */
+  --fp-surface-raised: #e9edf5;
+  --fp-overlay: rgba(11, 16, 32, 0.45);
+  --fp-line-subtle: #e4e9f2;
+  --fp-line-strong: #b9c2d4;
+  --fp-text-3: #8b9bb4;
+  --fp-info: #0284c7;
+
+  --fp-tone-violet-bg: rgba(139, 92, 246, 0.12);
+  --fp-tone-violet-text: #7c3aed;
+  --fp-tone-violet-border: rgba(124, 58, 237, 0.35);
+  --fp-tone-cyan-bg: rgba(34, 211, 238, 0.14);
+  --fp-tone-cyan-text: #0e7490;
+  --fp-tone-cyan-border: rgba(14, 116, 144, 0.35);
+  --fp-tone-green-bg: rgba(52, 211, 153, 0.16);
+  --fp-tone-green-text: #047857;
+  --fp-tone-green-border: rgba(4, 120, 87, 0.35);
+  --fp-tone-amber-bg: rgba(251, 191, 36, 0.18);
+  --fp-tone-amber-text: #b45309;
+  --fp-tone-amber-border: rgba(180, 83, 9, 0.35);
+  --fp-tone-red-bg: rgba(251, 113, 133, 0.12);
+  --fp-tone-red-text: #e11d48;
+  --fp-tone-red-border: rgba(225, 29, 72, 0.35);
+  --fp-tone-blue-bg: rgba(96, 165, 250, 0.14);
+  --fp-tone-blue-text: #1d4ed8;
+  --fp-tone-blue-border: rgba(29, 78, 216, 0.35);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--fp-bg);
+  color: var(--fp-text);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Restrained focus states for a11y */
+:focus-visible {
+  outline: 2px solid var(--fp-accent-2);
+  outline-offset: 2px;
+}
+
+html.light :focus-visible {
+  outline-color: var(--fp-accent);
+}
+
+/* Brand selection color */
+::selection {
+  background: rgba(139, 92, 246, 0.4);
+  color: #fff;
+}
+
+/* Horizontal-scroll wrapper for tables on small screens */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll table {
+  min-width: 640px;
+}
+
+/* Respect reduced-motion preferences across the app */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Slim scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.4) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.35);
+  border-radius: 8px;
+}
+html.light * {
+  scrollbar-color: rgba(100, 116, 139, 0.55) transparent;
+}
+html.light *::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.45);
+}
+
+/* Gradient text for key metrics / hero */
+.text-gradient {
+  background: linear-gradient(135deg, #8b5cf6, #22d3ee);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn-gradient {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9 55%, #0ea5e9);
+}
+.btn-gradient:hover {
+  filter: brightness(1.08);
+}
+
+/* React Flow canvas theming */
+.react-flow__attribution {
+  background: transparent;
+  color: var(--fp-text-2);
+}
+.react-flow__minimap {
+  background: var(--fp-card) !important;
+  border-radius: 12px;
+}
+.react-flow__controls {
+  border-radius: 12px;
+  overflow: hidden;
+}

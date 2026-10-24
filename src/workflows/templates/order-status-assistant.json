@@ -1,0 +1,82 @@
+{
+  "id": "order-status-assistant",
+  "name": "Order Status Assistant",
+  "description": "Confirm new orders by email instantly and stamp the order id on the contact record.",
+  "category": "Commerce",
+  "trigger": "trigger.commerce_event",
+  "requiredIntegrations": [
+    "email"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "crm:write"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.commerce_event",
+      "label": "Order created",
+      "config": {
+        "eventName": "order_created"
+      },
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.send_message",
+      "label": "Order confirmation",
+      "config": {
+        "channel": "email",
+        "body": "Thanks for your order {{orderId}}! We'll email tracking as soon as it ships."
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.update_crm_field",
+      "label": "Stamp last order",
+      "config": {
+        "field": "last_order",
+        "value": "{{orderId}}"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "(order_created event with orderId ORD-1234)"
+  ],
+  "publishChecklist": [
+    "Connect the email integration",
+    "Connect your store's order webhook",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "Email sends are simulated until the email provider is connected"
+  ]
+}

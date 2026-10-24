@@ -1,0 +1,117 @@
+{
+  "id": "facebook-comment-response",
+  "name": "Facebook Comment Auto-Response",
+  "description": "Answer common Facebook Page comment questions about hours and pricing with public replies.",
+  "category": "Social",
+  "trigger": "trigger.new_comment",
+  "requiredIntegrations": [
+    "facebook"
+  ],
+  "requiredPermissions": [
+    "messages:send"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.new_comment",
+      "label": "New Facebook comment",
+      "config": {},
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "c1",
+      "kind": "condition",
+      "type": "condition.keyword_contains",
+      "label": "Asks about hours?",
+      "config": {
+        "keyword": "hours"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.reply_comment",
+      "label": "Reply with hours",
+      "config": {
+        "body": "Hi! We're open Mon–Fri, 9am–6pm. Drop us a DM any time!"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "c2",
+      "kind": "condition",
+      "type": "condition.keyword_contains",
+      "label": "Asks about price?",
+      "config": {
+        "keyword": "price"
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.send_message",
+      "label": "Send pricing info",
+      "config": {
+        "channel": "facebook",
+        "body": "Here's a quick pricing overview — reply PRICING and I'll send the full breakdown."
+      },
+      "position": {
+        "x": 1180,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "c1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "c1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "a1",
+      "targetId": "c2",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "sourceId": "c2",
+      "targetId": "a2",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "What are your opening hours?",
+    "How much is the Growth plan?"
+  ],
+  "publishChecklist": [
+    "Connect the Facebook Page integration",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "Replies are simulated until Facebook is connected",
+    "Keep replies within Page messaging policy"
+  ]
+}

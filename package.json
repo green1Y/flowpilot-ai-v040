@@ -1,0 +1,51 @@
+{
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@xyflow/react": "^12.3.5",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.454.0",
+    "next": "^15.5.28",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.13.3",
+    "zod": "^3.23.8"
+  },
+  "description": "FlowPilot AI — multichannel AI automation & customer engagement SaaS platform (Phase 1-2 foundation)",
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^20.17.0",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "prisma": "^5.22.0",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.30"
+    }
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "name": "flowpilot-ai",
+  "private": true,
+  "scripts": {
+    "build": "prisma generate && next build",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "dev": "next dev",
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "check:logs": "bash scripts/check-logs.sh"
+  },
+  "version": "0.4.0"
+}

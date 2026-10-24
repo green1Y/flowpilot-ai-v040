@@ -1,0 +1,102 @@
+{
+  "id": "unanswered-followup",
+  "name": "Unanswered Follow-up",
+  "description": "Every morning, nudge contacts tagged awaiting-reply who haven't responded.",
+  "category": "Sales",
+  "trigger": "trigger.scheduled",
+  "requiredIntegrations": [
+    "email"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "crm:write"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.scheduled",
+      "label": "Every morning 10:00",
+      "config": {
+        "cron": "0 10 * * *",
+        "timezone": "UTC"
+      },
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "c1",
+      "kind": "condition",
+      "type": "condition.has_tag",
+      "label": "Awaiting reply?",
+      "config": {
+        "tag": "awaiting-reply"
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.send_message",
+      "label": "Follow-up nudge",
+      "config": {
+        "channel": "email",
+        "body": "Hi {{name}}, just floating this back to the top — any thoughts on my last note?"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.add_tag",
+      "label": "Tag followed-up",
+      "config": {
+        "tag": "followed-up"
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "c1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "c1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "(scheduled run with contact tagged awaiting-reply)"
+  ],
+  "publishChecklist": [
+    "Connect the email integration",
+    "Adjust the cron schedule",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "Email sends are simulated until the email provider is connected",
+    "Scheduled trigger requires the scheduler to be enabled"
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "id": "product-inquiry-assistant",
+  "name": "Product Inquiry Assistant",
+  "description": "When someone asks about a product, answer with AI, create a lead, and record their interest.",
+  "category": "Sales",
+  "trigger": "trigger.keyword",
+  "requiredIntegrations": [
+    "webchat"
+  ],
+  "requiredPermissions": [
+    "messages:send",
+    "ai:generate",
+    "crm:write"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.keyword",
+      "label": "Says 'product'",
+      "config": {
+        "keyword": "product"
+      },
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.ai_reply",
+      "label": "AI product answer",
+      "config": {
+        "confidenceThreshold": 0.75
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.create_lead",
+      "label": "Create lead",
+      "config": {
+        "name": "{{name}}"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a3",
+      "kind": "action",
+      "type": "action.update_crm_field",
+      "label": "Record interest",
+      "config": {
+        "field": "interest",
+        "value": "product-inquiry"
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "a2",
+      "targetId": "a3",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "Tell me about your product",
+    "What does the product do?"
+  ],
+  "publishChecklist": [
+    "Connect product docs to the knowledge base",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "AI answers are mock-generated until a real AI provider is configured",
+    "Create-lead uses the event's name when available"
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "id": "team-lead-notification",
+  "name": "Hot Lead Team Alert",
+  "description": "Ping the team the moment a high-score lead arrives and route it to the sales manager.",
+  "category": "Sales",
+  "trigger": "trigger.new_lead",
+  "requiredIntegrations": [],
+  "requiredPermissions": [
+    "team:notify",
+    "conversations:assign"
+  ],
+  "nodes": [
+    {
+      "id": "t1",
+      "kind": "trigger",
+      "type": "trigger.new_lead",
+      "label": "New lead",
+      "config": {},
+      "position": {
+        "x": 60,
+        "y": 80
+      }
+    },
+    {
+      "id": "c1",
+      "kind": "condition",
+      "type": "condition.lead_score_gte",
+      "label": "Score ≥ 80?",
+      "config": {
+        "score": 80
+      },
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "a1",
+      "kind": "action",
+      "type": "action.notify_team",
+      "label": "Alert the team",
+      "config": {
+        "message": "Hot lead: {{name}} (score {{leadScore}}). Act fast!"
+      },
+      "position": {
+        "x": 620,
+        "y": 80
+      }
+    },
+    {
+      "id": "a2",
+      "kind": "action",
+      "type": "action.assign_conversation",
+      "label": "Assign to sales manager",
+      "config": {
+        "assignee": "sales-manager"
+      },
+      "position": {
+        "x": 900,
+        "y": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "t1",
+      "targetId": "c1",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "sourceId": "c1",
+      "targetId": "a1",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "sourceId": "a1",
+      "targetId": "a2",
+      "label": ""
+    }
+  ],
+  "sampleMessages": [
+    "New lead: score 92",
+    "New lead: score 45"
+  ],
+  "publishChecklist": [
+    "Define your lead scoring rules",
+    "Publish this workflow"
+  ],
+  "limitations": [
+    "Notifications are written to the audit log (in-app) in this build"
+  ]
+}
